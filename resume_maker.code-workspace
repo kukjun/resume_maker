@@ -1,0 +1,44 @@
+{
+  "folders": [
+    {
+      "name": "Resume Maker (Root)",
+      "path": "."
+    },
+    {
+      "name": "Backend",
+      "path": "backend"
+    },
+    {
+      "name": "Frontend",
+      "path": "frontend"
+    }
+  ],
+  "settings": {
+    // Backend 폴더의 Python 설정
+    "python.defaultInterpreterPath": "${workspaceFolder:Backend}/.venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+
+    // Pylance 설정
+    "python.analysis.extraPaths": [
+      "${workspaceFolder:Backend}",
+      "${workspaceFolder:Backend}/app"
+    ],
+    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.autoImportCompletions": true,
+
+    // 검색 제외
+    "search.exclude": {
+      "**/.venv": true,
+      "**/node_modules": true,
+      "**/__pycache__": true,
+      "**/*.pyc": true
+    },
+
+    // 파일 감시 제외
+    "files.watcherExclude": {
+      "**/.venv/**": true,
+      "**/node_modules/**": true,
+      "**/__pycache__/**": true
+    }
+  }
+}

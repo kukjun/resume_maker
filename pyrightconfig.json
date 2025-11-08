@@ -1,0 +1,23 @@
+{
+  "venvPath": "backend",
+  "venv": ".venv",
+  "executionEnvironments": [
+    {
+      "root": "backend",
+      "pythonVersion": "3.12",
+      "pythonPlatform": "Darwin",
+      "extraPaths": [
+        "backend/app"
+      ]
+    }
+  ],
+  "include": [
+    "backend"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/node_modules",
+    "frontend"
+  ]
+}
