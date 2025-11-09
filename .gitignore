@@ -52,3 +52,5 @@ node_modules/
 
 # TestCode_Data (for backend)
 *.pdf
+*.json
+*.pkl

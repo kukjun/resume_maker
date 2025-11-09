@@ -14,10 +14,10 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o-mini"
 
     # LangSmith (Optional)
-    langchain_tracing_v2: bool = False
-    langchain_endpoint: str = "https://api.smith.langchain.com"
-    langchain_api_key: Optional[str] = None
-    langchain_project: str = "resume-maker"
+    LANGSMITH_TRACING: bool = False
+    LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
+    LANGSMITH_API_KEY: Optional[str] = None
+    LANGSMITH_PROJECT: str = "resume-maker"
 
     # FastAPI
     api_host: str = "0.0.0.0"
@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
 
 # Settings instance
-settings = Settings()
+settings = Settings()  # type: ignore
 
 
 def setup_langsmith():
@@ -41,11 +41,11 @@ def setup_langsmith():
     LangSmith 설정
     환경 변수가 설정되어 있으면 LangSmith 추적을 활성화합니다.
     """
-    if settings.langchain_tracing_v2 and settings.langchain_api_key:
-        os.environ["LANGCHAIN_TRACING_V2"] = str(settings.langchain_tracing_v2)
-        os.environ["LANGCHAIN_ENDPOINT"] = settings.langchain_endpoint
-        os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key
-        os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
-        print(f"✅ LangSmith 추적 활성화: 프로젝트 '{settings.langchain_project}'")
+    if settings.LANGSMITH_TRACING and settings.LANGSMITH_API_KEY:
+        os.environ["LANGSMITH_TRACING"] = str(settings.LANGSMITH_TRACING)
+        os.environ["LANGSMITH_ENDPOINT"] = settings.LANGSMITH_ENDPOINT
+        os.environ["LANGSMITH_API_KEY"] = settings.LANGSMITH_API_KEY
+        os.environ["LANGSMITH_PROJECT"] = settings.LANGSMITH_PROJECT
+        print(f"✅ LangSmith 추적 활성화: 프로젝트 '{settings.LANGSMITH_PROJECT}'")
     else:
         print("ℹ️  LangSmith 추적 비활성화 (API 키가 설정되지 않음)")
