@@ -34,8 +34,9 @@ export default function UploadPage() {
       if (!response.ok) throw new Error('Upload failed')
 
       const data = await response.json()
-      // 세션 ID와 첫 질문 저장
+      // 세션 ID, 사용자 ID, 첫 질문 저장
       localStorage.setItem('session_id', data.session_id)
+      localStorage.setItem('user_id', data.user_id)
       localStorage.setItem('first_question', data.first_question)
 
       // 채팅 페이지로 이동

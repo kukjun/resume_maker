@@ -15,16 +15,19 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // 세션 ID 확인
+    // 세션 ID와 사용자 ID 확인
     const storedSessionId = localStorage.getItem('session_id')
-    if (!storedSessionId) {
+    const storedUserId = localStorage.getItem('user_id')
+    if (!storedSessionId || !storedUserId) {
       router.push('/upload')
       return
     }
     setSessionId(storedSessionId)
+    setUserId(storedUserId)
 
     // 첫 질문 가져오기
     const firstQuestion = localStorage.getItem('first_question')
@@ -51,7 +54,7 @@ export default function ChatPage() {
   }, [messages])
 
   const handleSendMessage = async (content: string) => {
-    if (!sessionId) return
+    if (!sessionId || !userId) return
 
     // 사용자 메시지 추가
     const userMessage: Message = { role: 'user', content }
@@ -64,6 +67,7 @@ export default function ChatPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           session_id: sessionId,
+          user_id: userId,
           message: content,
         }),
       })
@@ -80,7 +84,7 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, assistantMessage])
 
       // 질문이 완료되면 지식 베이스 페이지로 이동
-      if (data.is_complete) {
+      if (data.is_completed) {
         setTimeout(() => {
           router.push('/knowledge')
         }, 2000)
