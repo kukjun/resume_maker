@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     LANGSMITH_ENDPOINT: str = "https://api.smith.langchain.com"
     LANGSMITH_API_KEY: Optional[str] = None
     LANGSMITH_PROJECT: str = "resume-maker"
+    DATABASE_URL: Optional[str] = None
 
     # FastAPI
     api_host: str = "0.0.0.0"

@@ -63,7 +63,7 @@ async def send_message(chat: ChatMessage, db: Session = Depends(get_db)):
 @router.get("/status/{session_id}")
 async def get_chat_status(session_id: str, db: Session = Depends(get_db)):
     """
-    현재 대화 상태 조회
+    현재 대화 상태 조회 (PostgresSaver를 통해 조회)
 
     Args:
         session_id: 세션 ID
@@ -73,22 +73,27 @@ async def get_chat_status(session_id: str, db: Session = Depends(get_db)):
         dict: 대화 상태 정보
     """
     try:
-        from app.repositories import ConversationRepository
+        from langgraph.checkpoint.postgres import PostgresSaver
+        from database.config import DATABASE_URL
 
-        conversation_repo = ConversationRepository(db)
-        conversation = conversation_repo.get_by_session_id(session_id)
+        # PostgresSaver를 통해 상태 조회
+        with PostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
+            config = {"configurable": {"thread_id": session_id}}
+            checkpoint = checkpointer.get(config)
 
-        if not conversation:
-            raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+            if not checkpoint:
+                raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
 
-        return {
-            "session_id": conversation.session_id,
-            "user_id": conversation.user_id,
-            "is_completed": conversation.is_completed,
-            "answered_count": conversation.answered_count,
-            "current_question_index": conversation.current_question_index,
-            "message_count": len(conversation.messages)
-        }
+            # 체크포인트에서 상태 추출
+            state = checkpoint["channel_values"]
+
+            return {
+                "session_id": session_id,
+                "user_id": state.get("user_id", ""),
+                "is_completed": state.get("is_completed", False),
+                "answered_count": state.get("answered_count", 0),
+                "current_question_index": state.get("current_question_index", 0)
+            }
 
     except HTTPException:
         raise

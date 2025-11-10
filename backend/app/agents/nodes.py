@@ -2,7 +2,6 @@
 LangGraph Nodes - 이력서 코칭 대화 노드들
 """
 import json
-from typing import Optional
 from sqlalchemy.orm import Session
 from langchain.chat_models import init_chat_model
 from langchain.messages import SystemMessage
@@ -13,37 +12,15 @@ from app.agents.prompts import (
     QUESTION_RESPONSE_PROMPT,
     COMPLETION_MESSAGE_PROMPT
 )
-from app.repositories import ResumeRepository, ConversationRepository
-from app.models.schemas import ResumeExtraction, ResumeAnalysis
+from app.repositories import ResumeRepository
+from app.models.schemas import ResumeExtraction
 
 
-async def load_conversation_node(state: ResumeCoachState, db: Session) -> ResumeCoachState:
+async def load_resume_node(state: ResumeCoachState, db: Session) -> ResumeCoachState:
     """
-    대화 세션과 이력서 데이터를 DB에서 로드
+    이력서 데이터를 DB에서 로드
     """
-    conversation_repo = ConversationRepository(db)
     resume_repo = ResumeRepository(db)
-
-    # 대화 세션 조회
-    conversation = conversation_repo.get_by_session_id(state["session_id"])
-
-    if conversation:
-        # 기존 세션 로드
-        state["messages"] = conversation.messages
-        state["current_question_index"] = conversation.current_question_index
-        state["answered_count"] = conversation.answered_count
-        state["is_completed"] = conversation.is_completed
-    else:
-        # 새 세션 생성
-        conversation = conversation_repo.create(
-            session_id=state["session_id"],
-            user_id=state["user_id"],
-            messages=[]
-        )
-        state["messages"] = []
-        state["current_question_index"] = 0
-        state["answered_count"] = 0
-        state["is_completed"] = False
 
     # 최근 이력서 데이터 로드
     recent_resume = resume_repo.get_recent_resume_by_user_id(state["user_id"])
@@ -68,15 +45,14 @@ async def update_resume_node(state: ResumeCoachState, db: Session) -> ResumeCoac
     사용자 답변을 기반으로 이력서 업데이트
     (기존 이력서 데이터 + 질문 + 답변) → LLM → 업데이트된 이력서
     """
-    if not state.get("user_answer") or not state.get("current_question"):
+    user_answer = state.get("user_answer")
+    current_question = state.get("current_question")
+
+    if not user_answer or not current_question:
         # 답변이 없으면 업데이트 스킵
         return state
 
     try:
-        # 현재 질문과 답변
-        current_question = state["current_question"]
-        user_answer = state["user_answer"]
-
         # 기존 이력서 데이터
         resume_json = json.dumps(state["current_resume_data"], ensure_ascii=False, indent=2)
 
@@ -122,8 +98,8 @@ async def update_resume_node(state: ResumeCoachState, db: Session) -> ResumeCoac
 
         print(f"✅ Resume updated with answer to question {state['current_question_index'] - 1}, total answered: {state['answered_count']}")
 
-    except Exception as e:
-        print(f"⚠️ Resume update failed: {str(e)}")
+    except Exception:
+        print("⚠️ Resume update failed")
         # 업데이트 실패해도 대화는 계속 진행
 
     return state
@@ -170,9 +146,9 @@ async def generate_response_node(state: ResumeCoachState) -> ResumeCoachState:
 
         response = model.invoke([SystemMessage(content=system_prompt)])
 
-        state["response"] = response.content
+        state["response"] = response.content # type: ignore
 
-    except Exception as e:
+    except Exception:
         # 응답 생성 실패하면 질문 그대로 사용
         state["response"] = current_question.get("question", "")
 
@@ -204,44 +180,13 @@ async def completion_node(state: ResumeCoachState) -> ResumeCoachState:
 
         response = model.invoke([SystemMessage(content=system_prompt)])
 
-        state["response"] = response.content
+        state["response"] = response.content # type: ignore
 
-    except Exception as e:
+    except Exception:
         # 응답 생성 실패하면 기본 메시지
         state["response"] = f"감사합니다! {completion_reason}. 업데이트된 이력서를 확인해보세요."
 
     state["is_completed"] = True
-
-    return state
-
-
-async def save_conversation_node(state: ResumeCoachState, db: Session) -> ResumeCoachState:
-    """
-    대화 상태를 DB에 저장
-    """
-    conversation_repo = ConversationRepository(db)
-
-    # 메시지 추가
-    if state.get("user_answer"):
-        state["messages"].append({
-            "role": "user",
-            "content": state["user_answer"]
-        })
-
-    if state.get("response"):
-        state["messages"].append({
-            "role": "assistant",
-            "content": state["response"]
-        })
-
-    # DB 업데이트
-    conversation_repo.update(
-        session_id=state["session_id"],
-        messages=state["messages"],
-        current_question_index=state["current_question_index"],
-        answered_count=state["answered_count"],
-        is_completed=state["is_completed"]
-    )
 
     return state
 

@@ -1,20 +1,23 @@
 """
 LangGraph Workflow - 이력서 코칭 대화 그래프
 """
+from math import e
 from langgraph.graph import StateGraph, END
 from sqlalchemy.orm import Session
 
 from app.agents.state import ResumeCoachState
 from app.agents.nodes import (
-    load_conversation_node,
+    load_resume_node,
     update_resume_node,
     select_question_node,
     generate_response_node,
     completion_node,
-    save_conversation_node,
     should_continue
 )
 
+from langgraph.checkpoint.postgres import PostgresSaver
+
+from app.database.config import DATABASE_URL
 
 def create_resume_coach_graph(db: Session):
     """
@@ -26,67 +29,23 @@ def create_resume_coach_graph(db: Session):
     Returns:
         Compiled LangGraph
     """
-    # StateGraph 생성
-    workflow = StateGraph(ResumeCoachState)
+    
+    try:
+        with PostgresSaver.from_conn_string(DATABASE_URL) as checkpointer:
+            # checkpointer.setup()
+            # StateGraph 생성
+            builder = StateGraph(ResumeCoachState)
+            
+            
 
-    # async 래퍼 함수들 정의 (db를 클로저로 캡처)
-    async def _load_conversation(state):
-        return await load_conversation_node(state, db)
 
-    async def _update_resume(state):
-        return await update_resume_node(state, db)
-
-    async def _select_question(state):
-        return await select_question_node(state)
-
-    async def _generate_response(state):
-        return await generate_response_node(state)
-
-    async def _completion(state):
-        return await completion_node(state)
-
-    async def _save_conversation(state):
-        return await save_conversation_node(state, db)
-
-    # 노드 추가
-    workflow.add_node("load_conversation", _load_conversation)
-    workflow.add_node("update_resume", _update_resume)
-    workflow.add_node("select_question", _select_question)
-    workflow.add_node("generate_response", _generate_response)
-    workflow.add_node("completion", _completion)
-    workflow.add_node("save_conversation", _save_conversation)
-
-    # 엣지 추가
-    # 1. 시작: load_conversation
-    workflow.set_entry_point("load_conversation")
-
-    # 2. load_conversation → update_resume (사용자 답변이 있으면 업데이트)
-    workflow.add_edge("load_conversation", "update_resume")
-
-    # 3. update_resume → select_question (다음 질문 선택)
-    workflow.add_edge("update_resume", "select_question")
-
-    # 4. select_question → 조건부 분기
-    workflow.add_conditional_edges(
-        "select_question",
-        should_continue,
-        {
-            "continue": "generate_response",  # 질문 계속
-            "complete": "completion"  # 완료
-        }
-    )
-
-    # 5. generate_response → save_conversation
-    workflow.add_edge("generate_response", "save_conversation")
-
-    # 6. completion → save_conversation
-    workflow.add_edge("completion", "save_conversation")
-
-    # 7. save_conversation → END
-    workflow.add_edge("save_conversation", END)
-
-    # 그래프 컴파일
-    return workflow.compile()
+            # 그래프 컴파일
+            return builder.compile(checkpointer=checkpointer)
+    except Exception as e:
+        print(e)
+        raise e
+        
+        
 
 
 async def run_resume_coach(
@@ -112,12 +71,11 @@ async def run_resume_coach(
             "current_question_index": int  # 현재 질문 인덱스
         }
     """
-    # 초기 상태 생성
+    # 초기 상태 생성 (PostgresSaver가 상태를 자동 관리)
     initial_state: ResumeCoachState = {
         "session_id": session_id,
         "user_id": user_id,
         "user_answer": user_answer,
-        "messages": [],
         "current_resume_data": None,
         "current_analysis": None,
         "improvement_questions": [],
@@ -128,11 +86,12 @@ async def run_resume_coach(
         "response": None
     }
 
-    # 그래프 생성 및 실행
+    # 그래프 생성 및 실행 (thread_id로 세션 관리)
     graph = create_resume_coach_graph(db)
-    result = await graph.ainvoke(initial_state)
+    config = {"configurable": {"thread_id": session_id}}
+    result = await graph.ainvoke(initial_state, config)
 
-    # 결과 반환 (카운터는 update_resume_node에서 이미 증가됨)
+    # 결과 반환
     return {
         "response": result.get("response", ""),
         "is_completed": result.get("is_completed", False),

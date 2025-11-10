@@ -1,8 +1,9 @@
 """
 LangGraph State Definition
 """
-from typing import TypedDict, Optional, List
-from app.models.schemas import ResumeExtraction, ResumeAnalysis, ImprovementQuestion
+import operator
+from typing import Annotated, TypedDict, Optional, List
+from langchain.messages import AnyMessage
 
 
 class ResumeCoachState(TypedDict):
@@ -11,12 +12,12 @@ class ResumeCoachState(TypedDict):
 
     LangGraph에서 사용하는 상태 정의
     """
-    # 세션 정보
-    session_id: str
+    thread_id: str
     user_id: str
 
     # 대화 정보
-    messages: List[dict]  # [{role: str, content: str}]
+    messages: Annotated[list[AnyMessage], operator.add]
+    llm_calls: int
     user_answer: Optional[str]  # 사용자의 현재 답변
 
     # 이력서 데이터
